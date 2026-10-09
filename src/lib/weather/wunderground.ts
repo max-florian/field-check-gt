@@ -6,6 +6,7 @@ import {
   wundergroundStationUrl,
 } from "@/config/locations";
 import { startOfGuatemalaDay } from "@/lib/time";
+import { loadStoredApiKey, storeApiKey } from "./key-store";
 import type { PrecipSample, PrecipSeries, ProviderOptions } from "./types";
 
 const API_BASE = "https://api.weather.com/v2/pws/observations/all/1day";
@@ -22,7 +23,7 @@ type Observation = {
 
 const ALL_STATION_IDS = LOCATIONS.flatMap((location) => location.stations.map((s) => s.id));
 
-/** The last key that worked, reused until the API rejects it. */
+/** The last key that worked in this instance, reused until the API rejects it. */
 let cachedApiKey: string | null = null;
 
 export function resetApiKeyCache() {
@@ -68,21 +69,43 @@ async function fetchWithKey(
   return body.observations ?? [];
 }
 
+/**
+ * Tries the key in memory, then the one saved in the key store, then the keys embedded
+ * in the dashboard pages. A key found in a page is saved for other instances.
+ */
 async function fetchObservations(
   stationId: string,
   fetchFn: typeof fetch,
 ): Promise<Observation[]> {
+  const triedKeys = new Set<string>();
+  const failures: string[] = [];
+
+  const tryKey = async (apiKey: string, origin: string) => {
+    triedKeys.add(apiKey);
+    const result = await fetchWithKey(stationId, apiKey, fetchFn);
+    if (typeof result === "number") {
+      failures.push(`${origin}: ${result}`);
+      if (cachedApiKey === apiKey) cachedApiKey = null;
+      return null;
+    }
+    cachedApiKey = apiKey;
+    return result;
+  };
+
   if (cachedApiKey) {
-    const result = await fetchWithKey(stationId, cachedApiKey, fetchFn);
-    if (typeof result !== "number") return result;
-    cachedApiKey = null;
+    const observations = await tryKey(cachedApiKey, "key in memory");
+    if (observations) return observations;
+  }
+
+  const storedKey = await loadStoredApiKey(fetchFn);
+  if (storedKey && !triedKeys.has(storedKey)) {
+    const observations = await tryKey(storedKey, "stored key");
+    if (observations) return observations;
   }
 
   // Keys aren't tied to a station, and some pages only embed a key that gets rejected,
   // so the other configured stations' pages are searched too.
   const pages = [stationId, ...ALL_STATION_IDS.filter((id) => id !== stationId)];
-  const triedKeys = new Set<string>();
-  const failures: string[] = [];
   for (const page of pages) {
     let keys: string[];
     try {
@@ -92,13 +115,11 @@ async function fetchObservations(
       continue;
     }
     for (const apiKey of keys.filter((key) => !triedKeys.has(key))) {
-      triedKeys.add(apiKey);
-      const result = await fetchWithKey(stationId, apiKey, fetchFn);
-      if (typeof result !== "number") {
-        cachedApiKey = apiKey;
-        return result;
+      const observations = await tryKey(apiKey, `key from ${page}`);
+      if (observations) {
+        await storeApiKey(apiKey, fetchFn);
+        return observations;
       }
-      failures.push(`key from ${page}: ${result}`);
     }
   }
   throw new Error(`No Wunderground API key was authorized (${failures.join("; ")})`);

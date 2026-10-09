@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getLocation } from "@/config/locations";
 import {
   extractApiKeys,
@@ -138,5 +138,63 @@ describe("fetchPwsSeries", () => {
     await expect(fetchPwsSeries(campoMarte, station, { now: NOW, fetch })).rejects.toThrow(
       "No Wunderground API key was authorized",
     );
+  });
+});
+
+describe("fetchPwsSeries with a key store", () => {
+  const KV_URL = "https://kv.example.com";
+
+  /** Fake Redis plus Wunderground, where every page only embeds the rejected key. */
+  function setup(stored: string | null, { kvDown = false } = {}) {
+    vi.stubEnv("KV_REST_API_URL", KV_URL);
+    vi.stubEnv("KV_REST_API_TOKEN", "token");
+    const store = { value: stored };
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+      const url = String(input);
+      if (url.startsWith(KV_URL)) {
+        if (kvDown) return new Response("down", { status: 500 });
+        const [command, , value] = url.slice(KV_URL.length + 1).split("/");
+        if (command === "set") store.value = value;
+        return Response.json({ result: command === "get" ? store.value : "OK" });
+      }
+      if (url.startsWith("https://www.wunderground.com/")) {
+        return new Response(store.value === null ? PAGE : `apiKey=${BAD_KEY}`);
+      }
+      if (url.includes(`apiKey=${GOOD_KEY}`)) return Response.json({ observations: OBSERVATIONS });
+      return new Response(null, { status: 401 });
+    });
+    return { fetch, store };
+  }
+
+  const hosts = (fetch: ReturnType<typeof setup>["fetch"]) =>
+    fetch.mock.calls.map(([input]) => new URL(String(input)).hostname);
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("uses the stored key when the pages only embed a rejected one", async () => {
+    const { fetch } = setup(GOOD_KEY);
+    const series = await fetchPwsSeries(campoMarte, station, { now: NOW, fetch });
+    expect(series.samples).toHaveLength(4);
+    expect(hosts(fetch)).toEqual(["kv.example.com", "api.weather.com"]);
+  });
+
+  it("stores a key found in a page", async () => {
+    const { fetch, store } = setup(null);
+    await fetchPwsSeries(campoMarte, station, { now: NOW, fetch });
+    expect(store.value).toBe(GOOD_KEY);
+  });
+
+  it("scrapes the pages when the stored key is rejected", async () => {
+    const { fetch } = setup(BAD_KEY);
+    await expect(fetchPwsSeries(campoMarte, station, { now: NOW, fetch })).rejects.toThrow(
+      "stored key: 401",
+    );
+    expect(hosts(fetch)).toContain("www.wunderground.com");
+  });
+
+  it("keeps working when the key store is down", async () => {
+    const { fetch } = setup(null, { kvDown: true });
+    const series = await fetchPwsSeries(campoMarte, station, { now: NOW, fetch });
+    expect(series.samples).toHaveLength(4);
   });
 });
