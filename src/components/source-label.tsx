@@ -8,7 +8,7 @@ export function SourceLabel({ source, skipped }: { source: WeatherSource; skippe
   return (
     <div className="flex flex-col gap-1 text-xs">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span className="text-zinc-500 dark:text-zinc-400">Fuente:</span>
+        <span className="text-muted">Fuente:</span>
         <a
           href={source.url}
           target="_blank"
@@ -22,14 +22,14 @@ export function SourceLabel({ source, skipped }: { source: WeatherSource; skippe
           {isStation ? `Estación ${source.stationId}` : "Open-Meteo"}
           <span aria-hidden="true">↗</span>
         </a>
-        <span className="text-zinc-500 dark:text-zinc-400">
+        <span className="text-muted">
           {isStation
             ? `Wunderground · ${formatDistance(source.distanceKm)}`
             : "estimación por modelo, menos precisa"}
         </span>
       </div>
       {skippedStations.length > 0 && (
-        <p className="text-zinc-500 dark:text-zinc-400" title={skipped.join("\n")}>
+        <p className="text-muted" title={skipped.join("\n")}>
           Sin datos de: {skippedStations.join(", ")}
         </p>
       )}

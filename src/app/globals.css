@@ -1,22 +1,41 @@
 @import "tailwindcss";
 
+/* Dark mode follows the .dark class set on <html> by the theme script and toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light mode is a warm beige instead of plain white. */
 :root {
-  --background: var(--color-zinc-50);
-  --foreground: var(--color-zinc-900);
+  --background: #f3ede1;
+  --foreground: #231e17;
+  --surface: #faf6ee;
+  --surface-muted: #ece4d5;
+  --line: #e0d5c1;
+  --line-strong: #cfc2aa;
+  --muted: #74695a;
+  color-scheme: light;
+}
+
+:root.dark {
+  --background: var(--color-zinc-950);
+  --foreground: var(--color-zinc-100);
+  --surface: var(--color-zinc-900);
+  --surface-muted: var(--color-zinc-800);
+  --line: var(--color-zinc-800);
+  --line-strong: var(--color-zinc-700);
+  --muted: var(--color-zinc-400);
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--color-zinc-950);
-    --foreground: var(--color-zinc-100);
-  }
 }
 
 body {

@@ -1,5 +1,6 @@
 import { formatDay, formatDuration, formatMm, formatTime } from "@/lib/format";
 import type { FieldStatus } from "@/lib/weather/status";
+import { PlayabilityBadge } from "./playability-badge";
 import { SourceLabel } from "./source-label";
 
 /** Data older than this gets a warning. */
@@ -9,10 +10,10 @@ type Props = { field: FieldStatus; now: number | null };
 
 export function FieldCard({ field, now }: Props) {
   return (
-    <article className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <article className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 shadow-sm">
       <header>
         <h2 className="text-lg font-semibold">{field.name}</h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{field.area}</p>
+        <p className="text-sm text-muted">{field.area}</p>
       </header>
       {field.ok ? (
         <FieldWeather field={field} now={now} />
@@ -32,11 +33,16 @@ function FieldWeather({ field, now }: { field: Extract<FieldStatus, { ok: true }
 
   return (
     <>
+      <PlayabilityBadge
+        playability={field.playability}
+        isRaining={isRaining}
+        recentMm={field.recentMm}
+      />
       <div
         className={`rounded-xl p-4 ${
           isRaining
             ? "bg-sky-100 text-sky-950 dark:bg-sky-500/15 dark:text-sky-100"
-            : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+            : "bg-surface-muted text-foreground"
         }`}
       >
         <p className="flex items-center gap-2 text-2xl font-bold">
@@ -56,11 +62,11 @@ function FieldWeather({ field, now }: { field: Extract<FieldStatus, { ok: true }
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-zinc-500 dark:text-zinc-400">Lluvia hoy</dt>
+          <dt className="text-muted">Lluvia hoy</dt>
           <dd className="text-base font-semibold">{formatMm(todayMm)}</dd>
         </div>
         <div>
-          <dt className="text-zinc-500 dark:text-zinc-400">Último dato</dt>
+          <dt className="text-muted">Último dato</dt>
           <dd className="text-base font-semibold">
             <span className="whitespace-nowrap">{formatTime(observedAt)}</span>
             {isStale && (

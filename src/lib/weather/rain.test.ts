@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeRain, findRainEpisodes } from "./rain";
+import { analyzeRain, assessPlayability, findRainEpisodes } from "./rain";
 import type { PrecipSample, PrecipSeries } from "./types";
 
 /** Guatemala local time (UTC-6) on 2026-10-08. */
@@ -123,5 +123,24 @@ describe("analyzeRain", () => {
     }));
     const today = fiveMinuteSamples("00:00", "12:00", { "09:00": 0.25, "10:00": 2 });
     expect(analyzeRain(series([...yesterday, ...today])).todayMm).toBe(2.25);
+  });
+});
+
+describe("playability", () => {
+  it("is unplayable while raining or after heavy rain", () => {
+    expect(assessPlayability(true, 0.5)).toBe("unplayable");
+    expect(assessPlayability(false, 10)).toBe("unplayable");
+  });
+
+  it("is doubtful after moderate rain and playable otherwise", () => {
+    expect(assessPlayability(false, 3)).toBe("doubtful");
+    expect(assessPlayability(false, 2.9)).toBe("playable");
+  });
+
+  it("only counts rain from the last 3 hours", () => {
+    const samples = fiveMinuteSamples("10:00", "16:00", { "11:00": 6, "11:05": 6, "14:00": 3 });
+    const status = analyzeRain(series(samples));
+    expect(status.recentMm).toBe(3);
+    expect(status.playability).toBe("doubtful");
   });
 });

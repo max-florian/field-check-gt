@@ -1,5 +1,6 @@
 import type { FieldLocation } from "@/config/locations";
 import { type FieldWeather, getFieldWeather } from "./index";
+import type { Playability } from "./rain";
 import type { PrecipSample, ProviderOptions, WeatherSource } from "./types";
 
 /** Serializable status of one field, as served by /api/estado. */
@@ -15,6 +16,9 @@ export type FieldStatus = {
       /** The ongoing episode when raining, otherwise the most recent one. */
       lastEpisode: { start: string; end: string; mm: number } | null;
       todayMm: number;
+      /** Rain in the last 3 hours. */
+      recentMm: number;
+      playability: Playability;
       observedAt: string;
       forecast: { start: string; end: string; mm: number }[];
       /** Why sources earlier in the fallback chain were skipped. */
@@ -45,6 +49,8 @@ export function toFieldStatus(location: FieldLocation, weather: FieldWeather): F
     isRaining: status.isRaining,
     lastEpisode: status.lastEpisode && sampleToJson(status.lastEpisode),
     todayMm: status.todayMm,
+    recentMm: status.recentMm,
+    playability: status.playability,
     observedAt: status.observedAt.toISOString(),
     forecast: series.forecast.map(sampleToJson),
     skipped,

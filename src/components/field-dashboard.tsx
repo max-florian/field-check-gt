@@ -42,7 +42,7 @@ export function FieldDashboard({ initial }: { initial: StatusResponse }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+      <div className="flex items-center justify-between gap-3 text-sm text-muted">
         <p aria-live="polite">
           {refreshFailed
             ? "No se pudo actualizar. Mostrando el último dato."
@@ -52,7 +52,7 @@ export function FieldDashboard({ initial }: { initial: StatusResponse }) {
           type="button"
           onClick={refresh}
           disabled={refreshing}
-          className="rounded-full border border-zinc-300 px-3 py-1.5 font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="rounded-full border border-line-strong px-3 py-1.5 font-medium text-foreground transition hover:bg-surface-muted disabled:opacity-50"
         >
           {refreshing ? "Actualizando…" : "Actualizar"}
         </button>
