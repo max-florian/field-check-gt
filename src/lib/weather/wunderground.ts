@@ -1,5 +1,6 @@
 import {
   type FieldLocation,
+  LOCATIONS,
   type Station,
   stationDistanceKm,
   wundergroundStationUrl,
@@ -18,6 +19,8 @@ type Observation = {
   epoch: number;
   metric: { precipRate: number | null; precipTotal: number | null };
 };
+
+const ALL_STATION_IDS = LOCATIONS.flatMap((location) => location.stations.map((s) => s.id));
 
 /** The last key that worked, reused until the API rejects it. */
 let cachedApiKey: string | null = null;
@@ -47,20 +50,18 @@ async function scrapeApiKeys(stationId: string, fetchFn: typeof fetch): Promise<
   const page = await fetchFn(wundergroundStationUrl(stationId), {
     headers: { "User-Agent": BROWSER_USER_AGENT },
   });
-  if (!page.ok) throw new Error(`Wunderground page returned ${page.status}`);
-  const keys = extractApiKeys(await page.text());
-  if (keys.length === 0) throw new Error("No API key found in the Wunderground page");
-  return keys;
+  if (!page.ok) throw new Error(`returned ${page.status}`);
+  return extractApiKeys(await page.text());
 }
 
-/** Returns null when the key is not authorized, so the caller can try the next one. */
+/** Returns the status code when the key is not authorized, so the caller can try the next one. */
 async function fetchWithKey(
   stationId: string,
   apiKey: string,
   fetchFn: typeof fetch,
-): Promise<Observation[] | null> {
+): Promise<Observation[] | number> {
   const response = await fetchFn(observationsUrl(stationId, apiKey));
-  if (response.status === 401 || response.status === 403) return null;
+  if (response.status === 401 || response.status === 403) return response.status;
   if (response.status === 204) throw new Error(`${stationId} has no observations today`);
   if (!response.ok) throw new Error(`Weather.com API returned ${response.status}`);
   const body = (await response.json()) as { observations?: Observation[] };
@@ -72,19 +73,35 @@ async function fetchObservations(
   fetchFn: typeof fetch,
 ): Promise<Observation[]> {
   if (cachedApiKey) {
-    const observations = await fetchWithKey(stationId, cachedApiKey, fetchFn);
-    if (observations) return observations;
+    const result = await fetchWithKey(stationId, cachedApiKey, fetchFn);
+    if (typeof result !== "number") return result;
     cachedApiKey = null;
   }
 
-  for (const apiKey of await scrapeApiKeys(stationId, fetchFn)) {
-    const observations = await fetchWithKey(stationId, apiKey, fetchFn);
-    if (observations) {
-      cachedApiKey = apiKey;
-      return observations;
+  // Keys aren't tied to a station, and some pages only embed a key that gets rejected,
+  // so the other configured stations' pages are searched too.
+  const pages = [stationId, ...ALL_STATION_IDS.filter((id) => id !== stationId)];
+  const triedKeys = new Set<string>();
+  const failures: string[] = [];
+  for (const page of pages) {
+    let keys: string[];
+    try {
+      keys = await scrapeApiKeys(page, fetchFn);
+    } catch (error) {
+      failures.push(`${page} page: ${(error as Error).message}`);
+      continue;
+    }
+    for (const apiKey of keys.filter((key) => !triedKeys.has(key))) {
+      triedKeys.add(apiKey);
+      const result = await fetchWithKey(stationId, apiKey, fetchFn);
+      if (typeof result !== "number") {
+        cachedApiKey = apiKey;
+        return result;
+      }
+      failures.push(`key from ${page}: ${result}`);
     }
   }
-  throw new Error("No Wunderground API key was authorized");
+  throw new Error(`No Wunderground API key was authorized (${failures.join("; ")})`);
 }
 
 /**

@@ -110,6 +110,25 @@ describe("fetchPwsSeries", () => {
     );
   });
 
+  it("looks for a working key in other stations' pages", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/IGUATE37")) return new Response(`apiKey=${BAD_KEY}`);
+      if (url.startsWith("https://www.wunderground.com/")) return new Response(PAGE);
+      if (url.includes(`apiKey=${GOOD_KEY}`)) return Response.json({ observations: OBSERVATIONS });
+      return new Response(null, { status: 401 });
+    });
+    const series = await fetchPwsSeries(campoMarte, station, { now: NOW, fetch });
+
+    expect(series.samples).toHaveLength(4);
+    expect(fetch.mock.calls.map(([input]) => String(input).split("?")[0])).toEqual([
+      "https://www.wunderground.com/dashboard/pws/IGUATE37",
+      "https://api.weather.com/v2/pws/observations/all/1day",
+      "https://www.wunderground.com/dashboard/pws/IGUATE56",
+      "https://api.weather.com/v2/pws/observations/all/1day",
+    ]);
+  });
+
   it("fails when no key is authorized", async () => {
     const fetch = vi.fn(async (input: string | URL | Request) =>
       String(input).startsWith("https://www.wunderground.com/")
