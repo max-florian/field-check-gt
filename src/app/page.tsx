@@ -1,17 +1,24 @@
-import { LOCATIONS } from "@/config/locations";
+import { FieldDashboard } from "@/components/field-dashboard";
+import { getAllFieldStatuses } from "@/lib/weather/cached";
 
-export default function Home() {
+export default async function Home() {
+  const initial = await getAllFieldStatuses();
+
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
-      <h1 className="text-3xl font-semibold tracking-tight">¿Está lloviendo en el campo?</h1>
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {LOCATIONS.map((location) => (
-          <li key={location.slug} className="rounded-xl border border-black/10 p-4 dark:border-white/15">
-            <h2 className="text-lg font-medium">{location.name}</h2>
-            <p className="text-sm opacity-70">{location.area}</p>
-          </li>
-        ))}
-      </ul>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:py-12">
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight">¿Está lloviendo en el campo?</h1>
+        <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+          Campos de softbol de Ciudad de Guatemala
+        </p>
+      </header>
+
+      <FieldDashboard initial={initial} />
+
+      <footer className="mt-auto text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+        Se considera lluvia a partir de 0.5 mm en 15 minutos; la llovizna no cuenta. Un aguacero
+        termina después de 15 minutos sin lluvia. Los datos se actualizan cada 5 minutos.
+      </footer>
     </main>
   );
 }
