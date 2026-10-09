@@ -20,7 +20,7 @@ describe("formatDuration", () => {
     [60 * 60_000, "1 h"],
     [130 * 60_000, "2 h 10 min"],
   ])("formats %d ms as %s", (ms, text) => {
-    expect(formatDuration(ms)).toBe(text);
+    expect(plain(formatDuration(ms))).toBe(text);
   });
 });
 

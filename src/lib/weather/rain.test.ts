@@ -23,7 +23,6 @@ function fiveMinuteSamples(from: string, to: string, rain: Record<string, number
 const series = (samples: PrecipSample[], observedAt = samples.at(-1)!.end): PrecipSeries => ({
   source: { kind: "open-meteo", url: "https://open-meteo.com" },
   samples,
-  forecast: [],
   observedAt,
 });
 

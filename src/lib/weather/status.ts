@@ -20,7 +20,15 @@ export type FieldStatus = {
       recentMm: number;
       playability: Playability;
       observedAt: string;
-      forecast: { start: string; end: string; mm: number }[];
+      /** Open-Meteo's next 2 hours; null when unavailable. */
+      forecast: {
+        until: string;
+        rainStartsAt: string | null;
+        rainStopsAt: string | null;
+        totalMm: number;
+        maxProbability: number | null;
+        url: string;
+      } | null;
       /** Why sources earlier in the fallback chain were skipped. */
       skipped: string[];
     }
@@ -39,7 +47,7 @@ const sampleToJson = ({ start, end, mm }: PrecipSample) => ({
 });
 
 export function toFieldStatus(location: FieldLocation, weather: FieldWeather): FieldStatus {
-  const { series, status, skipped } = weather;
+  const { series, status, forecast, forecastUrl, skipped } = weather;
   return {
     slug: location.slug,
     name: location.name,
@@ -52,7 +60,17 @@ export function toFieldStatus(location: FieldLocation, weather: FieldWeather): F
     recentMm: status.recentMm,
     playability: status.playability,
     observedAt: status.observedAt.toISOString(),
-    forecast: series.forecast.map(sampleToJson),
+    forecast:
+      forecast && forecastUrl
+        ? {
+            until: forecast.until.toISOString(),
+            rainStartsAt: forecast.rainStartsAt?.toISOString() ?? null,
+            rainStopsAt: forecast.rainStopsAt?.toISOString() ?? null,
+            totalMm: forecast.totalMm,
+            maxProbability: forecast.maxProbability,
+            url: forecastUrl,
+          }
+        : null,
     skipped,
   };
 }

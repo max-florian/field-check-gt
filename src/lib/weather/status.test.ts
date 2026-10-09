@@ -38,7 +38,14 @@ describe("getFieldStatus", () => {
       recentMm: 1.4,
       playability: "unplayable",
       observedAt: "2026-10-08T20:30:00.000Z",
-      forecast: [{ start: "2026-10-08T20:30:00.000Z", end: "2026-10-08T20:45:00.000Z", mm: 0.4 }],
+      forecast: {
+        until: "2026-10-08T20:45:00.000Z",
+        rainStartsAt: null,
+        rainStopsAt: "2026-10-08T20:30:00.000Z",
+        totalMm: 0.4,
+        maxProbability: null,
+        url: expect.stringContaining("open-meteo.com"),
+      },
       skipped: [expect.stringMatching(/^IGUATE37: No Wunderground API key was authorized/)],
     });
     expect(JSON.parse(JSON.stringify(status))).toEqual(status);

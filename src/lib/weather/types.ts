@@ -5,6 +5,9 @@ export type PrecipSample = {
   mm: number;
 };
 
+/** A modeled upcoming interval, with the chance of rain in its hour when known. */
+export type ForecastSample = PrecipSample & { probability: number | null };
+
 export type WeatherSource =
   | { kind: "pws"; stationId: string; distanceKm: number; url: string }
   | { kind: "open-meteo"; url: string };
@@ -13,8 +16,6 @@ export type PrecipSeries = {
   source: WeatherSource;
   /** Observed (or, for Open-Meteo, modeled) intervals up to now, oldest first. */
   samples: PrecipSample[];
-  /** Upcoming intervals, oldest first. Only Open-Meteo provides these. */
-  forecast: PrecipSample[];
   /** When the source last reported. */
   observedAt: Date;
 };

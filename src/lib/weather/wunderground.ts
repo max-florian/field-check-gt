@@ -153,7 +153,6 @@ export async function fetchPwsSeries(
       url: wundergroundStationUrl(station.id),
     },
     samples: observationsToSamples(withGauge),
-    forecast: [],
     observedAt,
   };
 }

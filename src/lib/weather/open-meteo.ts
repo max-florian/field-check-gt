@@ -1,23 +1,35 @@
 import { type FieldLocation, openMeteoUrl } from "@/config/locations";
-import type { PrecipSample, PrecipSeries, ProviderOptions } from "./types";
+import type { ForecastSample, PrecipSample, PrecipSeries, ProviderOptions } from "./types";
 
 const API_URL = "https://api.open-meteo.com/v1/forecast";
 const INTERVAL_MS = 15 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 type OpenMeteoResponse = {
   minutely_15?: { time: number[]; precipitation: (number | null)[] };
+  hourly?: { time: number[]; precipitation_probability: (number | null)[] };
 };
 
-export async function fetchOpenMeteoSeries(
+export type OpenMeteoData = {
+  /** Modeled rain up to now; used when no station is available. */
+  series: PrecipSeries;
+  /** The next 2 hours, oldest first. */
+  forecast: ForecastSample[];
+};
+
+export async function fetchOpenMeteo(
   location: FieldLocation,
   { now = new Date(), fetch: fetchFn = fetch }: ProviderOptions = {},
-): Promise<PrecipSeries> {
+): Promise<OpenMeteoData> {
   const params = new URLSearchParams({
     latitude: String(location.coordinates.lat),
     longitude: String(location.coordinates.lon),
     minutely_15: "precipitation",
     past_minutely_15: "96",
     forecast_minutely_15: "8",
+    hourly: "precipitation_probability",
+    past_hours: "1",
+    forecast_hours: "3",
     timezone: "GMT",
     timeformat: "unixtime",
   });
@@ -36,13 +48,25 @@ export async function fetchOpenMeteoSeries(
     };
   });
   const samples = all.filter((s) => s.end <= now);
-  const forecast = all.filter((s) => s.end > now);
   if (samples.length === 0) throw new Error("Open-Meteo returned no past data");
 
+  // Hourly probabilities also refer to the hour before their timestamp.
+  const hourly = (body.hourly?.time ?? []).map((epoch, i) => ({
+    end: epoch * 1000,
+    probability: body.hourly!.precipitation_probability[i],
+  }));
+  const probabilityAt = (end: Date) =>
+    hourly.find((h) => end.getTime() > h.end - HOUR_MS && end.getTime() <= h.end)
+      ?.probability ?? null;
+
   return {
-    source: { kind: "open-meteo", url: openMeteoUrl(location.coordinates) },
-    samples,
-    forecast,
-    observedAt: samples[samples.length - 1].end,
+    series: {
+      source: { kind: "open-meteo", url: openMeteoUrl(location.coordinates) },
+      samples,
+      observedAt: samples[samples.length - 1].end,
+    },
+    forecast: all
+      .filter((s) => s.end > now)
+      .map((s) => ({ ...s, probability: probabilityAt(s.end) })),
   };
 }

@@ -1,5 +1,6 @@
 import { formatDay, formatDuration, formatMm, formatTime } from "@/lib/format";
 import type { FieldStatus } from "@/lib/weather/status";
+import { ForecastLine } from "./forecast-line";
 import { PlayabilityBadge } from "./playability-badge";
 import { SourceLabel } from "./source-label";
 
@@ -27,7 +28,13 @@ export function FieldCard({ field, now }: Props) {
   );
 }
 
-function FieldWeather({ field, now }: { field: Extract<FieldStatus, { ok: true }>; now: number | null }) {
+function FieldWeather({
+  field,
+  now,
+}: {
+  field: Extract<FieldStatus, { ok: true }>;
+  now: number | null;
+}) {
   const { isRaining, lastEpisode, todayMm, observedAt } = field;
   const isStale = now !== null && now - new Date(observedAt).getTime() > STALE_AFTER_MS;
 
@@ -58,6 +65,9 @@ function FieldWeather({ field, now }: { field: Extract<FieldStatus, { ok: true }
             "Sin lluvia reciente."
           )}
         </p>
+        {field.forecast && (
+          <ForecastLine forecast={field.forecast} isRaining={isRaining} now={now} />
+        )}
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -86,9 +96,7 @@ function FieldWeather({ field, now }: { field: Extract<FieldStatus, { ok: true }
 function RainingDetails({ start, mm, now }: { start: string; mm: number; now: number | null }) {
   return (
     <>
-      {now !== null && (
-        <strong>Lleva {formatDuration(now - new Date(start).getTime())} · </strong>
-      )}
+      {now !== null && <strong>Lleva {formatDuration(now - new Date(start).getTime())} · </strong>}
       desde las {formatTime(start)} · {formatMm(mm)}
     </>
   );

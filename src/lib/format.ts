@@ -1,7 +1,7 @@
 import { TIME_ZONE } from "@/config/locations";
 import { startOfGuatemalaDay } from "@/lib/time";
 
-/** Non-breaking space, so "12 mm" and "2:05 p. m." never wrap mid-value. */
+/** Non-breaking space, so "12 mm", "25 min" and "2:05 p. m." never wrap mid-value. */
 const NBSP = "\u00a0";
 
 const partsFormatter = new Intl.DateTimeFormat("en-US", {
@@ -25,11 +25,11 @@ export function formatTime(date: Date | string): string {
 /** "45 min", "1 h", "2 h 10 min". */
 export function formatDuration(ms: number): string {
   const totalMinutes = Math.max(0, Math.round(ms / 60_000));
-  if (totalMinutes < 1) return "menos de 1 min";
+  if (totalMinutes < 1) return `menos de 1${NBSP}min`;
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+  if (hours === 0) return `${minutes}${NBSP}min`;
+  return minutes === 0 ? `${hours}${NBSP}h` : `${hours}${NBSP}h ${minutes}${NBSP}min`;
 }
 
 /** "12.5 mm", "0 mm". */
