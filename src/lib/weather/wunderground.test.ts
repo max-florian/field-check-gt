@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getLocation } from "@/config/locations";
+import { fakeKv } from "@/test/fake-kv";
 import {
   extractApiKeys,
   fetchPwsSeries,
@@ -142,28 +143,22 @@ describe("fetchPwsSeries", () => {
 });
 
 describe("fetchPwsSeries with a key store", () => {
-  const KV_URL = "https://kv.example.com";
+  const STORED = "wunderground:api-key";
 
-  /** Fake Redis plus Wunderground, where every page only embeds the rejected key. */
+  /** Fake KV plus Wunderground, where pages embed both keys only while nothing is stored. */
   function setup(stored: string | null, { kvDown = false } = {}) {
-    vi.stubEnv("KV_REST_API_URL", KV_URL);
-    vi.stubEnv("KV_REST_API_TOKEN", "token");
-    const store = { value: stored };
-    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+    const kv = fakeKv({ down: kvDown });
+    if (stored) kv.data.set(STORED, stored);
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
       const url = String(input);
-      if (url.startsWith(KV_URL)) {
-        if (kvDown) return new Response("down", { status: 500 });
-        const [command, , value] = url.slice(KV_URL.length + 1).split("/");
-        if (command === "set") store.value = value;
-        return Response.json({ result: command === "get" ? store.value : "OK" });
-      }
+      if (kv.handles(input)) return kv.respond(init);
       if (url.startsWith("https://www.wunderground.com/")) {
-        return new Response(store.value === null ? PAGE : `apiKey=${BAD_KEY}`);
+        return new Response(stored === null ? PAGE : `apiKey=${BAD_KEY}`);
       }
       if (url.includes(`apiKey=${GOOD_KEY}`)) return Response.json({ observations: OBSERVATIONS });
       return new Response(null, { status: 401 });
     });
-    return { fetch, store };
+    return { fetch, kv };
   }
 
   const hosts = (fetch: ReturnType<typeof setup>["fetch"]) =>
@@ -179,9 +174,9 @@ describe("fetchPwsSeries with a key store", () => {
   });
 
   it("stores a key found in a page", async () => {
-    const { fetch, store } = setup(null);
+    const { fetch, kv } = setup(null);
     await fetchPwsSeries(campoMarte, station, { now: NOW, fetch });
-    expect(store.value).toBe(GOOD_KEY);
+    expect(kv.data.get(STORED)).toBe(GOOD_KEY);
   });
 
   it("scrapes the pages when the stored key is rejected", async () => {
